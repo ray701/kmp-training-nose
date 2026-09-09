@@ -1,0 +1,18 @@
+name: Import Issues
+
+on:
+  workflow_dispatch:
+
+jobs:
+  import-issues:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Import Issues from docs/issues/
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./scripts/import_issues.sh

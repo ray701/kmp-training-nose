@@ -8,12 +8,12 @@ class GetWeatherUseCase(
     private val weatherRepository: WeatherRepository,
 ) {
     suspend operator fun invoke(
-        latitude: Double,
-        longitude: Double,
+        lat: Double,
+        lon: Double,
     ): ApiResult<Weather> {
         return weatherRepository.getWeather(
-            latitude = latitude,
-            longitude = longitude,
+            lat = lat,
+            lon = lon,
         )
     }
 }

@@ -18,16 +18,16 @@ class WeatherViewModel(
     val uiState: StateFlow<WeatherUiState> = _uiState.asStateFlow()
 
     fun loadWeather(
-        latitude: Double = DEFAULT_LATITUDE,
-        longitude: Double = DEFAULT_LONGITUDE,
+        lat: Double = DEFAULT_LATITUDE,
+        lon: Double = DEFAULT_LONGITUDE,
     ) {
         _uiState.value = WeatherUiState.Loading
 
         viewModelScope.launch {
             when (
                 val result = getWeatherUseCase(
-                    latitude = latitude,
-                    longitude = longitude,
+                    lat = lat,
+                    lon = lon,
                 )
             ) {
                 is ApiResult.Success -> {

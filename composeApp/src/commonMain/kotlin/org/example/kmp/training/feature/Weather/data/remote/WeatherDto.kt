@@ -1,4 +1,4 @@
-package org.example.kmp.training.feature.Weather.data.remote
+package org.example.kmp.training.feature.weather.data.remote
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

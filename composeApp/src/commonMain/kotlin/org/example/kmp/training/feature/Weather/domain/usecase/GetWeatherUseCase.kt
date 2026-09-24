@@ -1,8 +1,8 @@
-package org.example.kmp.training.feature.Weather.domain.usecase
+package org.example.kmp.training.feature.weather.domain.usecase
 
 import org.example.kmp.training.core.network.ApiResult
-import org.example.kmp.training.feature.Weather.domain.model.Weather
-import org.example.kmp.training.feature.Weather.domain.repository.WeatherRepository
+import org.example.kmp.training.feature.weather.domain.model.Weather
+import org.example.kmp.training.feature.weather.domain.repository.WeatherRepository
 
 class GetWeatherUseCase(
     private val weatherRepository: WeatherRepository,

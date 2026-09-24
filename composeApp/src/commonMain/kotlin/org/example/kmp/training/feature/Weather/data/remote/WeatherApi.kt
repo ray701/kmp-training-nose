@@ -1,4 +1,4 @@
-package org.example.kmp.training.feature.Weather.data.remote
+package org.example.kmp.training.feature.weather.data.remote
 
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -12,6 +12,7 @@ import io.ktor.client.statement.bodyAsText
 import kotlinx.serialization.SerializationException
 import org.example.kmp.training.core.network.ApiError
 import org.example.kmp.training.core.network.ApiResult
+import org.example.kmp.training.feature.weather.data.remote.WeatherDto
 import kotlin.coroutines.cancellation.CancellationException
 
 class WeatherApi(
@@ -19,13 +20,13 @@ class WeatherApi(
     private val baseUrl: String,
 ) {
     suspend fun getWeather(
-        latitude: Double,
-        longitude: Double,
+        lat: Double,
+        lon: Double,
     ): ApiResult<WeatherDto> {
         return try {
             val response = httpClient.get("$baseUrl/weather") {
-                parameter("lat", latitude)
-                parameter("lon", longitude)
+                parameter("lat", lat)
+                parameter("lon", lon)
             }
 
             ApiResult.Success(response.body<WeatherDto>())

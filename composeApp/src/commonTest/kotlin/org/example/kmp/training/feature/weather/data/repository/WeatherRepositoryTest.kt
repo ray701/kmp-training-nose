@@ -12,16 +12,16 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import org.example.kmp.training.core.network.ApiResult
-import org.example.kmp.training.feature.Weather.data.remote.WeatherApi
-import org.example.kmp.training.feature.Weather.data.repository.WeatherRepositoryImpl
-import org.example.kmp.training.feature.Weather.domain.model.Weather
+import org.example.kmp.training.feature.weather.data.remote.WeatherApi
+import org.example.kmp.training.feature.weather.data.repository.WeatherRepositoryImpl
+import org.example.kmp.training.feature.weather.domain.model.Weather
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
 class WeatherRepositoryTest {
     @Test
-    fun `天気JSONをパースできる`() = runTest {
+    fun 天気JSONをパースできる() = runTest {
         val mockEngine = MockEngine {
             respond(
                 content = """
@@ -64,8 +64,8 @@ class WeatherRepositoryTest {
         )
 
         val result = repository.getWeather(
-            latitude = 35.0,
-            longitude = 139.0,
+            lat = 35.0,
+            lon = 139.0,
         )
 
         val success = assertIs<ApiResult.Success<Weather>>(result)

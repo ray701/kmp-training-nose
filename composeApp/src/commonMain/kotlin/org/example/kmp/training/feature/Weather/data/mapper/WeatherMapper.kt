@@ -1,7 +1,7 @@
-package org.example.kmp.training.feature.Weather.data.mapper
+package org.example.kmp.training.feature.weather.data.mapper
 
-import org.example.kmp.training.feature.Weather.data.remote.WeatherDto
-import org.example.kmp.training.feature.Weather.domain.model.Weather
+import org.example.kmp.training.feature.weather.data.remote.WeatherDto
+import org.example.kmp.training.feature.weather.domain.model.Weather
 
 fun WeatherDto.toDomain(): Weather {
     return Weather(

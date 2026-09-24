@@ -1,6 +1,6 @@
-package org.example.kmp.training.feature.Weather.presentation
+package org.example.kmp.training.feature.weather.presentation
 
-import org.example.kmp.training.feature.Weather.domain.model.Weather
+import org.example.kmp.training.feature.weather.domain.model.Weather
 
 sealed interface WeatherUiState {
     data object Loading: WeatherUiState

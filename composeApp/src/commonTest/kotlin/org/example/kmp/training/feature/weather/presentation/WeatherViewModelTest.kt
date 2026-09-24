@@ -7,11 +7,11 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.example.kmp.training.core.network.ApiError
 import org.example.kmp.training.core.network.ApiResult
-import org.example.kmp.training.feature.Weather.domain.model.Weather
-import org.example.kmp.training.feature.Weather.domain.repository.WeatherRepository
-import org.example.kmp.training.feature.Weather.domain.usecase.GetWeatherUseCase
-import org.example.kmp.training.feature.Weather.presentation.WeatherUiState
-import org.example.kmp.training.feature.Weather.presentation.WeatherViewModel
+import org.example.kmp.training.feature.weather.domain.model.Weather
+import org.example.kmp.training.feature.weather.domain.repository.WeatherRepository
+import org.example.kmp.training.feature.weather.domain.usecase.GetWeatherUseCase
+import org.example.kmp.training.feature.weather.presentation.WeatherUiState
+import org.example.kmp.training.feature.weather.presentation.WeatherViewModel
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test

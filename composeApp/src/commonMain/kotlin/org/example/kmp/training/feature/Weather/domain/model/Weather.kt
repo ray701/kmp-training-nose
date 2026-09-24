@@ -1,4 +1,4 @@
-package org.example.kmp.training.feature.Weather.domain.model
+package org.example.kmp.training.feature.weather.domain.model
 
 data class Weather(
     val location: String,

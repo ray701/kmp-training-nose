@@ -1,4 +1,4 @@
-package org.example.kmp.training.feature.Weather.presentation
+package org.example.kmp.training.feature.weather.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.example.kmp.training.core.network.ApiError
 import org.example.kmp.training.core.network.ApiResult
-import org.example.kmp.training.feature.Weather.domain.usecase.GetWeatherUseCase
+import org.example.kmp.training.feature.weather.domain.usecase.GetWeatherUseCase
 
 class WeatherViewModel(
     private val getWeatherUseCase: GetWeatherUseCase,
@@ -24,25 +24,18 @@ class WeatherViewModel(
         _uiState.value = WeatherUiState.Loading
 
         viewModelScope.launch {
-            when (
-                val result = getWeatherUseCase(
-                    lat = lat,
-                    lon = lon,
-                )
-            ) {
-                is ApiResult.Success -> {
-                    _uiState.value = WeatherUiState.Success(result.data)
-                    logState(_uiState.value)
-                }
-
-                is ApiResult.Failure -> {
-                    _uiState.value = WeatherUiState.Error(
-                        message = result.error.toDisplayMessage(),
-                    )
-                    logState(_uiState.value)
-                }
+            val newState = when (val result = getWeatherUseCase(lat = lat, lon = lon,)) {
+                is ApiResult.Success -> WeatherUiState.Success(result.data)
+                is ApiResult.Failure -> WeatherUiState.Error(result.error.toDisplayMessage())
             }
+
+            _uiState.value = newState
+            logState(_uiState.value)
         }
+    }
+
+    fun retry() {
+        loadWeather()
     }
 
     private fun logState(state: WeatherUiState) {
@@ -56,11 +49,11 @@ class WeatherViewModel(
 
 private fun ApiError.toDisplayMessage(): String {
     return when (this) {
-        ApiError.ServerNotRunning -> "サーバーが起動していない可能性があります。"
+        ApiError.ServerNotRunning -> "サーバーに接続できませんでした。"
         ApiError.Timeout -> "通信がタイムアウトしました。"
         ApiError.NetworkUnavailable -> "ネットワークに接続できません。"
-        ApiError.SerializationError -> "レスポンスの解析に失敗しました。"
-        is ApiError.HttpError -> "HTTPエラーが発生しました。status=$statusCode"
-        is ApiError.Unknown -> "不明なエラーが発生しました。${message.orEmpty()}"
+        ApiError.SerializationError -> "データの読み込みに失敗しました。"
+        is ApiError.HttpError -> "エラーが発生しました。（$statusCode）"
+        is ApiError.Unknown -> "不明なエラーが発生しました。"
     }
 }

@@ -1,8 +1,10 @@
 package org.example.kmp.training
 
+import android.Manifest
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
@@ -16,8 +18,19 @@ import org.example.kmp.training.feature.weather.presentation.WeatherScreen
 import org.example.kmp.training.feature.weather.presentation.WeatherViewModel
 
 class MainActivity : ComponentActivity() {
+    private val permissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { /* 結果はViewModel側の再取得で反映 */ }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        permissionLauncher.launch(
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION,
+            ),
+        )
 
         setContent {
             MaterialTheme {
@@ -27,7 +40,7 @@ class MainActivity : ComponentActivity() {
                     }
 
                     LaunchedEffect(Unit) {
-                        viewModel.loadWeather(lat = 35.68, lon = 139.76)
+                        viewModel.loadWeatherByCurrentLocation()
                     }
 
                     WeatherScreen(viewModel = viewModel)

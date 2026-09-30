@@ -22,7 +22,7 @@ final class WeatherViewModelWrapper: ObservableObject {
     }
 
     func load() {
-        observer.loadWeather(lat: 35.68, lon: 139.76)
+        observer.loadWeatherByCurrentLocation()
     }
 
     func retry() {

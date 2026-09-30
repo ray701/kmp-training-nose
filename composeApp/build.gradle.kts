@@ -56,7 +56,9 @@ kotlin {
         }
 
         androidMain.dependencies {
+            implementation(libs.gms.play.services.location)
             implementation(libs.ktor.client.okhttp)
+            implementation(libs.play.services.location)
         }
 
         iosMain.dependencies {

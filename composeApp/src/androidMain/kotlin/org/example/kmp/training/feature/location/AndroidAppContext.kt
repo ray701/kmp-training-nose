@@ -1,0 +1,14 @@
+package org.example.kmp.training.feature.location
+
+import android.annotation.SuppressLint
+import android.content.Context
+
+@SuppressLint("StaticFieldLeak")
+object AndroidAppContext {
+    lateinit var context: Context
+        private set
+
+    fun init(context: Context) {
+        this.context = context.applicationContext
+    }
+}

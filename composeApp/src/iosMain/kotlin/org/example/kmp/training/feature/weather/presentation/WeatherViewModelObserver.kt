@@ -22,8 +22,8 @@ class WeatherViewModelObserver {
         }
     }
 
-    fun loadWeather(lat: Double, lon: Double) {
-        viewModel.loadWeather(lat = lat, lon = lon)
+    fun loadWeatherByCurrentLocation() {
+        viewModel.loadWeatherByCurrentLocation()
     }
 
     fun retry() {

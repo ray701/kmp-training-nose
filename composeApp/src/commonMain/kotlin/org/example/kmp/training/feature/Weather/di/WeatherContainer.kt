@@ -1,6 +1,7 @@
 package org.example.kmp.training.feature.weather.di
 
 import org.example.kmp.training.core.network.HttpClientFactory
+import org.example.kmp.training.feature.location.createLocationProvider
 import org.example.kmp.training.feature.weather.data.remote.WeatherApi
 import org.example.kmp.training.feature.weather.data.repository.WeatherRepositoryImpl
 import org.example.kmp.training.feature.weather.domain.repository.WeatherRepository
@@ -27,6 +28,7 @@ object WeatherContainer {
     fun createWeatherViewModel(): WeatherViewModel {
         return WeatherViewModel(
             getWeatherUseCase = getWeatherUseCase,
+            locationProvider = createLocationProvider(),
         )
     }
 }

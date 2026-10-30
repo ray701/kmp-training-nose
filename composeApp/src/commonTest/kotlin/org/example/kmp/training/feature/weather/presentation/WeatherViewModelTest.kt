@@ -7,9 +7,11 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.example.kmp.training.core.network.ApiError
 import org.example.kmp.training.core.network.ApiResult
+import org.example.kmp.training.feature.location.LocationProvider
+import org.example.kmp.training.feature.location.domain.model.Location
+import org.example.kmp.training.feature.location.domain.model.LocationResult
 import org.example.kmp.training.feature.weather.domain.model.Weather
 import org.example.kmp.training.feature.weather.domain.repository.WeatherRepository
-import org.example.kmp.training.feature.weather.domain.usecase.GetWeatherUseCase
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -35,6 +37,13 @@ private class FakeWeatherRepository(
         return result
     }
 }
+
+private class FakeLocationProvider(
+    private val result: LocationResult,
+) : LocationProvider {
+    override suspend fun getCurrentLocation(): LocationResult = result
+}
+
 class WeatherViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
 
@@ -55,14 +64,15 @@ class WeatherViewModelTest {
         )
 
         val viewModel = WeatherViewModel(
-            getWeatherUseCase = GetWeatherUseCase(repository),
+            weatherRepository = repository,
+            locationProvider = fakeLocationProvider(),
         )
 
         assertIs<WeatherUiState.Loading>(viewModel.uiState.value)
     }
 
     @Test
-    fun loadWeather_success_setsSuccessState() = runTest {
+    fun loadWeather_success_setsSuccessState() = runTest(testDispatcher) {
         val expected = sampleWeather()
 
         val repository = FakeWeatherRepository(
@@ -70,10 +80,11 @@ class WeatherViewModelTest {
         )
 
         val viewModel = WeatherViewModel(
-            getWeatherUseCase = GetWeatherUseCase(repository),
+            weatherRepository = repository,
+            locationProvider = fakeLocationProvider(),
         )
 
-        viewModel.loadWeather(lat = 35.68, lon = 139.76)
+        viewModel.loadWeatherByCurrentLocation()
 
         testScheduler.advanceUntilIdle()
 
@@ -82,16 +93,17 @@ class WeatherViewModelTest {
     }
 
     @Test
-    fun loadWeather_failure_setsErrorState() = runTest {
+    fun loadWeather_failure_setsErrorState() = runTest(testDispatcher) {
         val repository = FakeWeatherRepository(
             result = ApiResult.Failure(ApiError.ServerNotRunning),
         )
 
         val viewModel = WeatherViewModel(
-            getWeatherUseCase = GetWeatherUseCase(repository),
+            weatherRepository = repository,
+            locationProvider = fakeLocationProvider(),
         )
 
-        viewModel.loadWeather(lat = 35.68, lon = 139.76)
+        viewModel.loadWeatherByCurrentLocation()
 
         testScheduler.advanceUntilIdle()
 
@@ -99,16 +111,17 @@ class WeatherViewModelTest {
     }
 
     @Test
-    fun loadWeather_setsLoadingBeforeResult() = runTest {
+    fun loadWeather_setsLoadingBeforeResult() = runTest(testDispatcher) {
         val repository = FakeWeatherRepository(
             result = ApiResult.Success(sampleWeather()),
         )
 
         val viewModel = WeatherViewModel(
-            getWeatherUseCase = GetWeatherUseCase(repository),
+            weatherRepository = repository,
+            locationProvider = fakeLocationProvider(),
         )
 
-        viewModel.loadWeather(lat = 35.68, lon = 139.76)
+        viewModel.loadWeatherByCurrentLocation()
 
         // まだコルーチンを進めていないのでLoadingのまま
         assertIs<WeatherUiState.Loading>(viewModel.uiState.value)
@@ -120,22 +133,35 @@ class WeatherViewModelTest {
     }
 
     @Test
-    fun loadWeather_passesLatitudeAndLongitude() = runTest {
+    fun loadWeather_passesLatitudeAndLongitude() = runTest(testDispatcher) {
         val repository = FakeWeatherRepository(
             result = ApiResult.Success(sampleWeather()),
         )
 
         val viewModel = WeatherViewModel(
-            getWeatherUseCase = GetWeatherUseCase(repository),
+            weatherRepository = repository,
+            locationProvider = fakeLocationProvider(),
         )
 
-        viewModel.loadWeather(lat = 35.68, lon = 139.76)
+        viewModel.loadWeatherByCurrentLocation()
 
         testScheduler.advanceUntilIdle()
 
         assertEquals(35.68, repository.capturedLatitude)
         assertEquals(139.76, repository.capturedLongitude)
     }
+
+    private fun fakeLocationProvider(): LocationProvider {
+        return FakeLocationProvider(
+            LocationResult.Success(
+                Location(
+                    latitude = 35.68,
+                    longitude = 139.76,
+                ),
+            ),
+        )
+    }
+
     private fun sampleWeather(): Weather {
         return Weather(
             location = "Tokyo area (Lat: 35.68, Lon: 139.76)",

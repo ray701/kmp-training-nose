@@ -2,6 +2,7 @@ package org.example.kmp.training.feature.weather.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -11,10 +12,11 @@ import org.example.kmp.training.core.network.ApiResult
 import org.example.kmp.training.feature.location.LocationProvider
 import org.example.kmp.training.feature.location.domain.model.LocationError
 import org.example.kmp.training.feature.location.domain.model.LocationResult
-import org.example.kmp.training.feature.weather.domain.usecase.GetWeatherUseCase
+import org.example.kmp.training.feature.weather.domain.repository.WeatherRepository
 
+@Inject
 class WeatherViewModel(
-    private val getWeatherUseCase: GetWeatherUseCase,
+    private val weatherRepository: WeatherRepository,
     private val locationProvider: LocationProvider,
 ) : ViewModel() {
 
@@ -46,7 +48,7 @@ class WeatherViewModel(
     }
 
     private suspend fun fetchWeather(lat: Double, lon: Double) {
-        val state = when (val result = getWeatherUseCase(lat, lon)) {
+        val state = when (val result = weatherRepository.getWeather(lat, lon)) {
             is ApiResult.Success -> WeatherUiState.Success(result.data)
             is ApiResult.Failure -> WeatherUiState.Error(result.error.toDisplayMessage())
         }

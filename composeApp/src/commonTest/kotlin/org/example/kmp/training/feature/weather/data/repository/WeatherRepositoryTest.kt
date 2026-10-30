@@ -13,7 +13,6 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import org.example.kmp.training.core.network.ApiResult
 import org.example.kmp.training.feature.weather.data.remote.WeatherApi
-import org.example.kmp.training.feature.weather.data.repository.WeatherRepositoryImpl
 import org.example.kmp.training.feature.weather.domain.model.Weather
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -59,7 +58,7 @@ class WeatherRepositoryTest {
             baseUrl = "http://localhost:8080",
         )
 
-        val repository = WeatherRepositoryImpl(
+        val repository = RealWeatherRepository(
             weatherApi = weatherApi,
         )
 

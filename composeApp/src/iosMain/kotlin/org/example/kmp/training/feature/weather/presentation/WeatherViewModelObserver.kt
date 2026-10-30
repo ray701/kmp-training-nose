@@ -5,10 +5,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import org.example.kmp.training.feature.weather.di.WeatherContainer
+import org.example.kmp.training.di.IosAppGraph
 
 class WeatherViewModelObserver {
-    private val viewModel: WeatherViewModel = WeatherContainer.createWeatherViewModel()
+    private val viewModel: WeatherViewModel = IosAppGraph.createWeatherViewModel()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var job: Job? = null

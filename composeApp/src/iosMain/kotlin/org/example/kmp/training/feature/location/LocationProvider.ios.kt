@@ -17,14 +17,14 @@ import platform.Foundation.NSError
 import platform.darwin.NSObject
 import kotlin.coroutines.resume
 
-actual class LocationProvider {
+internal class IosLocationProvider : LocationProvider {
 
     // デリゲートを保持しておかないと解放されてしまうため保持する
     private var delegate: CLLocationManagerDelegateProtocol? = null
     private var manager: CLLocationManager? = null
 
     @OptIn(ExperimentalForeignApi::class)
-    actual suspend fun getCurrentLocation(): LocationResult {
+    override suspend fun getCurrentLocation(): LocationResult {
         return suspendCancellableCoroutine { cont ->
             val locationManager = CLLocationManager()
 

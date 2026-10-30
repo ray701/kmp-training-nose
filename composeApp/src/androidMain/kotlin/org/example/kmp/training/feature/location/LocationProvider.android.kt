@@ -13,13 +13,13 @@ import org.example.kmp.training.feature.location.domain.model.LocationError
 import org.example.kmp.training.feature.location.domain.model.LocationResult
 import kotlin.coroutines.resume
 
-actual class LocationProvider(
+internal class AndroidLocationProvider(
     private val context: Context,
-) {
+) : LocationProvider {
     private val fusedClient =
         LocationServices.getFusedLocationProviderClient(context)
 
-    actual suspend fun getCurrentLocation(): LocationResult {
+    override suspend fun getCurrentLocation(): LocationResult {
         if (!hasLocationPermission()) {
             return LocationResult.Failure(LocationError.PermissionDenied)
         }

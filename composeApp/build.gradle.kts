@@ -1,5 +1,10 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
+val isProd = providers.gradleProperty("isProd")
+    .orElse("false")
+    .map(String::toBoolean)
+    .get()
+
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidKmpLibrary)
@@ -35,6 +40,17 @@ kotlin {
     jvm()
 
     sourceSets {
+        val commonMain = getByName("commonMain")
+        val selectedMain = create(if (isProd) "realMain" else "fakeMain") {
+            dependsOn(commonMain)
+        }
+        val iosMain = create("iosMain") {
+            dependsOn(selectedMain)
+            dependencies {
+                implementation(libs.ktor.client.darwin)
+            }
+        }
+
         commonMain.dependencies {
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
@@ -62,13 +78,14 @@ kotlin {
             implementation(libs.ktor.client.okhttp)
             implementation(libs.play.services.location)
         }
+        androidMain.get().dependsOn(selectedMain)
 
-        iosMain.dependencies {
-            implementation(libs.ktor.client.darwin)
-        }
+        getByName("iosArm64Main").dependsOn(iosMain)
+        getByName("iosSimulatorArm64Main").dependsOn(iosMain)
 
         jvmMain.dependencies {
             implementation(libs.ktor.client.okhttp)
         }
+        jvmMain.get().dependsOn(selectedMain)
     }
 }

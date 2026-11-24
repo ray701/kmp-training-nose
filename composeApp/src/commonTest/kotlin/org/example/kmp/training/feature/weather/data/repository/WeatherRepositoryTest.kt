@@ -11,6 +11,7 @@ import io.ktor.serialization.kotlinx.json.json
 
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import org.example.kmp.training.core.network.ApiError
 import org.example.kmp.training.core.network.ApiResult
 import org.example.kmp.training.feature.weather.data.remote.WeatherApi
 import org.example.kmp.training.feature.weather.domain.model.Weather
@@ -78,5 +79,37 @@ class WeatherRepositoryTest {
             ),
             success.data,
         )
+    }
+
+    @Test
+    fun HTTPエラーをApiErrorに変換できる() = runTest {
+        val mockEngine = MockEngine { request ->
+            assertEquals("/weather", request.url.encodedPath)
+            assertEquals("35.0", request.url.parameters["lat"])
+            assertEquals("139.0", request.url.parameters["lon"])
+            respond(
+                content = "Internal Server Error",
+                status = HttpStatusCode.InternalServerError,
+            )
+        }
+        val client = HttpClient(mockEngine) {
+            expectSuccess = true
+        }
+        val repository = RealWeatherRepository(
+            weatherApi = WeatherApi(
+                httpClient = client,
+                baseUrl = "http://localhost:8080",
+            ),
+        )
+
+        val result = repository.getWeather(
+            lat = 35.0,
+            lon = 139.0,
+        )
+
+        val failure = assertIs<ApiResult.Failure>(result)
+        val error = assertIs<ApiError.HttpError>(failure.error)
+        assertEquals(HttpStatusCode.InternalServerError.value, error.statusCode)
+        assertEquals("Internal Server Error", error.message)
     }
 }

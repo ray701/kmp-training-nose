@@ -3,61 +3,157 @@ package org.example.kmp.training.feature.weather.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.zacsweers.metro.Inject
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.example.kmp.training.core.network.ApiError
 import org.example.kmp.training.core.network.ApiResult
 import org.example.kmp.training.feature.location.LocationProvider
+import org.example.kmp.training.feature.location.domain.model.Location
 import org.example.kmp.training.feature.location.domain.model.LocationError
 import org.example.kmp.training.feature.location.domain.model.LocationResult
+import org.example.kmp.training.feature.location.domain.repository.RegisteredLocationRepository
 import org.example.kmp.training.feature.weather.domain.repository.WeatherRepository
 
 @Inject
 class WeatherViewModel(
     private val weatherRepository: WeatherRepository,
     private val locationProvider: LocationProvider,
+    private val registeredLocationRepository: RegisteredLocationRepository,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow<WeatherUiState>(WeatherUiState.Loading)
+    private val _uiState = MutableStateFlow(WeatherUiState())
     val uiState: StateFlow<WeatherUiState> = _uiState.asStateFlow()
 
+    private var registeredLocationJob: Job? = null
+
+    fun load() {
+        loadWeatherByCurrentLocation()
+        loadRegisteredLocationWeather()
+    }
+
     fun loadWeatherByCurrentLocation() {
-        updateState(WeatherUiState.Loading)
+        _uiState.update {
+            it.copy(currentLocation = CurrentLocationWeatherUiState.Loading)
+        }
 
         viewModelScope.launch {
             when (val locationResult = locationProvider.getCurrentLocation()) {
                 is LocationResult.Success -> {
-                    val loc = locationResult.location
-                    println("WeatherTraining: location=lat ${loc.latitude}, lon ${loc.longitude}")
-                    fetchWeather(loc.latitude, loc.longitude)
+                    val location = locationResult.location
+                    val weatherState = when (
+                        val result = weatherRepository.getWeather(
+                            location.latitude,
+                            location.longitude,
+                        )
+                    ) {
+                        is ApiResult.Success -> CurrentLocationWeatherUiState.Success(
+                            location = location,
+                            weather = result.data,
+                        )
+                        is ApiResult.Failure -> CurrentLocationWeatherUiState.Error(
+                            result.error.toDisplayMessage(),
+                        )
+                    }
+                    _uiState.update { it.copy(currentLocation = weatherState) }
                 }
 
                 is LocationResult.Failure -> {
-                    updateState(
-                        WeatherUiState.Error(locationResult.error.toDisplayMessage()),
+                    _uiState.update {
+                        it.copy(
+                            currentLocation = CurrentLocationWeatherUiState.Error(
+                                locationResult.error.toDisplayMessage(),
+                            ),
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun loadRegisteredLocationWeather() {
+        _uiState.update {
+            it.copy(registeredLocation = RegisteredLocationWeatherUiState.Loading)
+        }
+
+        registeredLocationJob?.cancel()
+        registeredLocationJob = viewModelScope.launch {
+            try {
+                val location = registeredLocationRepository.getRegisteredLocation()
+                if (location == null) {
+                    _uiState.update {
+                        it.copy(
+                            registeredLocation = RegisteredLocationWeatherUiState.Unregistered,
+                        )
+                    }
+                    return@launch
+                }
+
+                val weatherState = fetchRegisteredLocationWeather(location)
+                _uiState.update { it.copy(registeredLocation = weatherState) }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Throwable) {
+                _uiState.update {
+                    it.copy(
+                        registeredLocation = RegisteredLocationWeatherUiState.Error(
+                            "登録地点を読み込めませんでした。",
+                        ),
                     )
                 }
             }
         }
     }
 
-    fun retry() {
-        loadWeatherByCurrentLocation()
-    }
+    fun registerCurrentLocation() {
+        val location = (
+            _uiState.value.currentLocation as? CurrentLocationWeatherUiState.Success
+            )?.location ?: return
 
-    private suspend fun fetchWeather(lat: Double, lon: Double) {
-        val state = when (val result = weatherRepository.getWeather(lat, lon)) {
-            is ApiResult.Success -> WeatherUiState.Success(result.data)
-            is ApiResult.Failure -> WeatherUiState.Error(result.error.toDisplayMessage())
+        _uiState.update { it.copy(isRegistering = true, registrationError = null) }
+        viewModelScope.launch {
+            try {
+                registeredLocationRepository.saveRegisteredLocation(location)
+                _uiState.update { it.copy(isRegistering = false) }
+                loadRegisteredLocationWeather()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Throwable) {
+                _uiState.update {
+                    it.copy(
+                        isRegistering = false,
+                        registrationError = "現在地を登録できませんでした。",
+                    )
+                }
+            }
         }
-        updateState(state)
     }
 
-    private fun updateState(state: WeatherUiState) {
-        _uiState.value = state
-        println("WeatherUiState=$state")
+    fun retryCurrentLocation() = loadWeatherByCurrentLocation()
+
+    fun retryRegisteredLocation() = loadRegisteredLocationWeather()
+
+    private suspend fun fetchRegisteredLocationWeather(
+        location: Location,
+    ): RegisteredLocationWeatherUiState {
+        return when (
+            val result = weatherRepository.getWeather(
+                location.latitude,
+                location.longitude,
+            )
+        ) {
+            is ApiResult.Success -> RegisteredLocationWeatherUiState.Success(
+                location = location,
+                weather = result.data,
+            )
+            is ApiResult.Failure -> RegisteredLocationWeatherUiState.Error(
+                result.error.toDisplayMessage(),
+            )
+        }
     }
 }
 

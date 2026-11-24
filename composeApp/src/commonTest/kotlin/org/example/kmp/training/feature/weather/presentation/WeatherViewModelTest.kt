@@ -1,6 +1,8 @@
 package org.example.kmp.training.feature.weather.presentation
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -9,7 +11,9 @@ import org.example.kmp.training.core.network.ApiError
 import org.example.kmp.training.core.network.ApiResult
 import org.example.kmp.training.feature.location.LocationProvider
 import org.example.kmp.training.feature.location.domain.model.Location
+import org.example.kmp.training.feature.location.domain.model.LocationError
 import org.example.kmp.training.feature.location.domain.model.LocationResult
+import org.example.kmp.training.feature.location.domain.repository.RegisteredLocationRepository
 import org.example.kmp.training.feature.weather.domain.model.Weather
 import org.example.kmp.training.feature.weather.domain.repository.WeatherRepository
 import kotlin.test.AfterTest
@@ -19,22 +23,19 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
 // commonTest 内に、固定データを返す Fake を定義する
-private class FakeWeatherRepository(
-    private val result: ApiResult<Weather>,
+private class RecordingWeatherRepository(
+    private val resultFor: suspend (Double, Double) -> ApiResult<Weather> = { _, _ ->
+        ApiResult.Success(sampleWeather())
+    },
 ) : WeatherRepository {
-    var capturedLatitude: Double? = null
-        private set
-
-    var capturedLongitude: Double? = null
-        private set
+    val requestedCoordinates = mutableListOf<Pair<Double, Double>>()
 
     override suspend fun getWeather(
         lat: Double,
-        lon: Double
+        lon: Double,
     ): ApiResult<Weather> {
-        capturedLatitude = lat
-        capturedLongitude = lon
-        return result
+        requestedCoordinates += lat to lon
+        return resultFor(lat, lon)
     }
 }
 
@@ -44,6 +45,20 @@ private class FakeLocationProvider(
     override suspend fun getCurrentLocation(): LocationResult = result
 }
 
+private class FakeRegisteredLocationRepository(
+    initialLocation: Location? = null,
+) : RegisteredLocationRepository {
+    var location: Location? = initialLocation
+        private set
+
+    override suspend fun getRegisteredLocation(): Location? = location
+
+    override suspend fun saveRegisteredLocation(location: Location) {
+        this.location = location
+    }
+}
+
+@OptIn(ExperimentalCoroutinesApi::class)
 class WeatherViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
 
@@ -58,116 +73,166 @@ class WeatherViewModelTest {
     }
 
     @Test
-    fun initialState_isLoading() {
-        val repository = FakeWeatherRepository(
-            result = ApiResult.Success(sampleWeather()),
-        )
+    fun initialState_hasBothSectionsLoading() {
+        val viewModel = createViewModel()
 
-        val viewModel = WeatherViewModel(
-            weatherRepository = repository,
-            locationProvider = fakeLocationProvider(),
+        assertIs<CurrentLocationWeatherUiState.Loading>(
+            viewModel.uiState.value.currentLocation,
         )
-
-        assertIs<WeatherUiState.Loading>(viewModel.uiState.value)
+        assertIs<RegisteredLocationWeatherUiState.Loading>(
+            viewModel.uiState.value.registeredLocation,
+        )
     }
 
     @Test
-    fun loadWeather_success_setsSuccessState() = runTest(testDispatcher) {
-        val expected = sampleWeather()
-
-        val repository = FakeWeatherRepository(
-            result = ApiResult.Success(expected),
-        )
-
-        val viewModel = WeatherViewModel(
-            weatherRepository = repository,
-            locationProvider = fakeLocationProvider(),
-        )
-
-        viewModel.loadWeatherByCurrentLocation()
-
+    fun load_withoutRegistration_showsCurrentWeatherAndUnregistered() =
+        runTest(testDispatcher) {
+        val viewModel = createViewModel()
+        viewModel.load()
         testScheduler.advanceUntilIdle()
 
-        val state = assertIs<WeatherUiState.Success>(viewModel.uiState.value)
-        assertEquals(expected, state.weather)
+        assertIs<CurrentLocationWeatherUiState.Success>(
+            viewModel.uiState.value.currentLocation,
+        )
+        assertIs<RegisteredLocationWeatherUiState.Unregistered>(
+            viewModel.uiState.value.registeredLocation,
+        )
     }
 
     @Test
-    fun loadWeather_failure_setsErrorState() = runTest(testDispatcher) {
-        val repository = FakeWeatherRepository(
-            result = ApiResult.Failure(ApiError.ServerNotRunning),
+    fun load_usesPersistedCoordinatesForRegisteredWeather() = runTest(testDispatcher) {
+        val weatherRepository = RecordingWeatherRepository()
+        val registeredLocation = Location(34.69, 135.50)
+        val viewModel = createViewModel(
+            weatherRepository = weatherRepository,
+            registeredRepository = FakeRegisteredLocationRepository(registeredLocation),
         )
 
-        val viewModel = WeatherViewModel(
-            weatherRepository = repository,
-            locationProvider = fakeLocationProvider(),
-        )
-
-        viewModel.loadWeatherByCurrentLocation()
-
+        viewModel.load()
         testScheduler.advanceUntilIdle()
 
-        assertIs<WeatherUiState.Error>(viewModel.uiState.value)
+        assertEquals(true, weatherRepository.requestedCoordinates.contains(34.69 to 135.50))
+        val state = assertIs<RegisteredLocationWeatherUiState.Success>(
+            viewModel.uiState.value.registeredLocation,
+        )
+        assertEquals(registeredLocation, state.location)
     }
 
     @Test
-    fun loadWeather_setsLoadingBeforeResult() = runTest(testDispatcher) {
-        val repository = FakeWeatherRepository(
-            result = ApiResult.Success(sampleWeather()),
-        )
-
-        val viewModel = WeatherViewModel(
-            weatherRepository = repository,
-            locationProvider = fakeLocationProvider(),
+    fun registerCurrentLocation_savesCoordinatesAndRefreshesRegisteredWeather() =
+        runTest(testDispatcher) {
+        val registeredRepository = FakeRegisteredLocationRepository()
+        val viewModel = createViewModel(
+            registeredRepository = registeredRepository,
         )
 
         viewModel.loadWeatherByCurrentLocation()
-
-        // まだコルーチンを進めていないのでLoadingのまま
-        assertIs<WeatherUiState.Loading>(viewModel.uiState.value)
-
+        testScheduler.advanceUntilIdle()
+        viewModel.registerCurrentLocation()
         testScheduler.advanceUntilIdle()
 
-        // 完了後はSuccess
-        assertIs<WeatherUiState.Success>(viewModel.uiState.value)
+        assertEquals(CURRENT_LOCATION, registeredRepository.location)
+        assertIs<RegisteredLocationWeatherUiState.Success>(
+            viewModel.uiState.value.registeredLocation,
+        )
     }
 
     @Test
-    fun loadWeather_passesLatitudeAndLongitude() = runTest(testDispatcher) {
-        val repository = FakeWeatherRepository(
-            result = ApiResult.Success(sampleWeather()),
-        )
-
-        val viewModel = WeatherViewModel(
-            weatherRepository = repository,
-            locationProvider = fakeLocationProvider(),
-        )
-
-        viewModel.loadWeatherByCurrentLocation()
-
-        testScheduler.advanceUntilIdle()
-
-        assertEquals(35.68, repository.capturedLatitude)
-        assertEquals(139.76, repository.capturedLongitude)
-    }
-
-    private fun fakeLocationProvider(): LocationProvider {
-        return FakeLocationProvider(
-            LocationResult.Success(
-                Location(
-                    latitude = 35.68,
-                    longitude = 139.76,
-                ),
+    fun registerCurrentLocation_ignoresStaleRegisteredWeatherResponse() =
+        runTest(testDispatcher) {
+        val viewModel = createViewModel(
+            weatherRepository = RecordingWeatherRepository { lat, _ ->
+                if (lat == 34.69) delay(10_000)
+                ApiResult.Success(sampleWeather())
+            },
+            registeredRepository = FakeRegisteredLocationRepository(
+                Location(34.69, 135.50),
             ),
         )
+
+        viewModel.load()
+        testScheduler.runCurrent()
+        viewModel.registerCurrentLocation()
+        testScheduler.advanceUntilIdle()
+
+        val state = assertIs<RegisteredLocationWeatherUiState.Success>(
+            viewModel.uiState.value.registeredLocation,
+        )
+        assertEquals(CURRENT_LOCATION, state.location)
     }
 
-    private fun sampleWeather(): Weather {
-        return Weather(
-            location = "Tokyo area (Lat: 35.68, Lon: 139.76)",
-            temperature = 20.0,
-            condition = "Sunny",
-            humidity = 50,
+    @Test
+    fun currentLocationFailure_doesNotHideRegisteredWeather() = runTest(testDispatcher) {
+        val viewModel = createViewModel(
+            locationProvider = FakeLocationProvider(
+                LocationResult.Failure(LocationError.PermissionDenied),
+            ),
+            registeredRepository = FakeRegisteredLocationRepository(
+                Location(34.69, 135.50),
+            ),
+        )
+
+        viewModel.load()
+        testScheduler.advanceUntilIdle()
+
+        assertIs<CurrentLocationWeatherUiState.Error>(
+            viewModel.uiState.value.currentLocation,
+        )
+        assertIs<RegisteredLocationWeatherUiState.Success>(
+            viewModel.uiState.value.registeredLocation,
+        )
+    }
+
+    @Test
+    fun registeredWeatherFailure_doesNotHideCurrentWeather() = runTest(testDispatcher) {
+        val viewModel = createViewModel(
+            weatherRepository = RecordingWeatherRepository { lat, _ ->
+                if (lat == 34.69) {
+                    ApiResult.Failure(ApiError.NetworkUnavailable)
+                } else {
+                    ApiResult.Success(sampleWeather())
+                }
+            },
+            registeredRepository = FakeRegisteredLocationRepository(
+                Location(34.69, 135.50),
+            ),
+        )
+
+        viewModel.load()
+        testScheduler.advanceUntilIdle()
+
+        assertIs<CurrentLocationWeatherUiState.Success>(
+            viewModel.uiState.value.currentLocation,
+        )
+        assertIs<RegisteredLocationWeatherUiState.Error>(
+            viewModel.uiState.value.registeredLocation,
+        )
+    }
+
+    private fun createViewModel(
+        weatherRepository: WeatherRepository = RecordingWeatherRepository(),
+        locationProvider: LocationProvider = FakeLocationProvider(
+            LocationResult.Success(CURRENT_LOCATION),
+        ),
+        registeredRepository: RegisteredLocationRepository =
+            FakeRegisteredLocationRepository(),
+    ) = WeatherViewModel(
+        weatherRepository = weatherRepository,
+        locationProvider = locationProvider,
+        registeredLocationRepository = registeredRepository,
+    )
+
+    private companion object {
+        val CURRENT_LOCATION = Location(
+            latitude = 35.68,
+            longitude = 139.76,
         )
     }
 }
+
+private fun sampleWeather(): Weather = Weather(
+    location = "Tokyo area (Lat: 35.68, Lon: 139.76)",
+    temperature = 20.0,
+    condition = "Sunny",
+    humidity = 50,
+)

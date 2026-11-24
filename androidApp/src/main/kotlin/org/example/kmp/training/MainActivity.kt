@@ -36,7 +36,7 @@ class MainActivity : ComponentActivity() {
                     }
 
                     LaunchedEffect(Unit) {
-                        viewModel.loadWeatherByCurrentLocation()
+                        viewModel.load()
                     }
 
                     WeatherScreen(viewModel = viewModel)

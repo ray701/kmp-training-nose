@@ -13,8 +13,7 @@ final class WeatherViewModelWrapper: ObservableObject {
     private let observer = WeatherViewModelObserver()
 
     init() {
-        // 初期状態は Loading
-        self.uiState = WeatherUiStateLoading()
+        self.uiState = observer.initialState()
 
         observer.startObserving { [weak self] state in
             self?.uiState = state
@@ -22,11 +21,19 @@ final class WeatherViewModelWrapper: ObservableObject {
     }
 
     func load() {
-        observer.loadWeatherByCurrentLocation()
+        observer.load()
     }
 
-    func retry() {
-        observer.retry()
+    func registerCurrentLocation() {
+        observer.registerCurrentLocation()
+    }
+
+    func retryCurrentLocation() {
+        observer.retryCurrentLocation()
+    }
+
+    func retryRegisteredLocation() {
+        observer.retryRegisteredLocation()
     }
 
     deinit {

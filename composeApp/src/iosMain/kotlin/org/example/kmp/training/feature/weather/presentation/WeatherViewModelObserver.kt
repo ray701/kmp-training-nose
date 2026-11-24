@@ -13,6 +13,8 @@ class WeatherViewModelObserver {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var job: Job? = null
 
+    fun initialState(): WeatherUiState = viewModel.uiState.value
+
     // Swiftから呼ぶ: uiStateをcollectして変化を通知
     fun startObserving(onChange: (WeatherUiState) -> Unit) {
         job = scope.launch {
@@ -22,13 +24,15 @@ class WeatherViewModelObserver {
         }
     }
 
-    fun loadWeatherByCurrentLocation() {
-        viewModel.loadWeatherByCurrentLocation()
+    fun load() {
+        viewModel.load()
     }
 
-    fun retry() {
-        viewModel.retry()
-    }
+    fun registerCurrentLocation() = viewModel.registerCurrentLocation()
+
+    fun retryCurrentLocation() = viewModel.retryCurrentLocation()
+
+    fun retryRegisteredLocation() = viewModel.retryRegisteredLocation()
 
     // Swiftのdeinitで呼ぶ: 購読解除
     fun stopObserving() {
